@@ -3,14 +3,18 @@ cd D:\女性高管对企业创新影响研究
 
 
 * 结果输出路径
-global res_path D:\女性高管对企业创新影响研究\输出
+global res_path D:\女性高管对企业创新影响研究\输出\
 
-
+* 下载配置安装包 使用于OLS回归模型以及结果导出
+ssc install estout
+ssc install outreg2
 
 *= 导入事件日期数据
 import excel D:\女性高管对企业创新影响研究\FS_Combas.xlsx, firstrow clear
+sort stkcd accper
 save balance_clean.dta, replace
 import excel D:\女性高管对企业创新影响研究\FS_comins.xlsx, firstrow clear
+sort atkcd
 save income_clean.dta, replace
 import excel D:\女性高管对企业创新影响研究\CG_Director.xlsx, firstrow clear
 save ceo_clean.dta, replace
@@ -18,7 +22,7 @@ import excel D:\女性高管对企业创新影响研究\STK_LISTEDCOINFOANL.xlsx
 save industrycode.dta, replace
 
 *=构建女性高管变量
-*=将“男女”变为 女==1，男==0，以stkcd，accper为根据加总构建单一年度的女性高管变量female——num
+*=将“男女”变为 女==1，男==0，以stkcd，accper为根据加总并且构建单一年度的女性高管变量female——num
 *= 去掉多余重复值
 use ceo_clean.dta, replace
 gen female_ceo = (gender_ceo == "女") if !missing(gender_ceo)
@@ -54,7 +58,7 @@ gen rd_intensity = rd_expenditure / revenue if rd_expenditure != . & revenue != 
 *=企业规模（总资产对数）
 gen log_assets = ln(total_assets)
 *=资本结构（资产负债率）
-gen leverage = total_debt / total_assets 
+gen leverage = total_liabilities / total_assets 
 *=资产有形性
 gen tangibility = fixed_assets / total_assets
 *=流动比率
@@ -64,16 +68,15 @@ winsor2 rd_intensity log_assets leverage tangibility current_ratio, cuts(1 99) r
 *=剔除缺失值
 drop if missing(rd_intensity, female_ceo, log_assets, leverage, tangibility, current_ratio)
 *=生成年份和行业虚拟变量
-tab year, gen(year_dummy)
-tab industry_code, gen(ind_dummy)
-
+tab accper, gen(year_dummy)
+tab industrycode, gen(ind_dummy)
 
 *=生成描述性统计表 
-estpost summarize rd_intensity female_ceo log_assets leverage tangibility current_ratio
+estpost summarize rd_intensity female_num log_assets leverage tangibility current_ratio
 esttab using "Descriptive_Stats.rtf", cells("mean(fmt(3)) sd(fmt(3)) min(fmt(2)) max(fmt(2))") replace
 
 *=生成相关系数矩阵（带*号标注显著性）
-estpost correlate rd_intensity female_ceo log_assets leverage tangibility current_ratio, matrix listwise
+estpost correlate rd_intensity female_num log_assets leverage tangibility current_ratio, matrix listwise
 esttab . using "Correlation_Matrix.rtf", unstack not noobs compress star(* 0.05) replace
 *=绘制散点图和拟合线
 twoway (scatter rd_intensity log_assets) (lfit rd_intensity log_assets) (qfit rd_intensity log_assets),
@@ -81,16 +84,16 @@ title("Innovation Intensity vs Firm Size") legend(label(1 "Data") label(2 "Linea
 graph export "Scatter_Plot.png", replace
 
 
-*基准回归模型（控制年份和行业固定效应）
+*OLS基准回归模型（控制年份和行业固定效应）
 
-reg rd_intensity female_ceo log_assets leverage tangibility current_ratio year_dummy* ind_dummy*, vce(robust)
+reg rd_intensity female_num log_assets leverage tangibility current_ratio year_dummy* ind_dummy*, vce(robust)
 est store Model1
 outreg2 using "Regression_Results.rtf", replace ctitle("Baseline") addtext(Year FE, Yes, Industry FE, Yes)
 
 /* 异方差检验 */
 estat hettest // 若p<0.05，存在异方差，应使用稳健标准误差
 
-*调节变量示例，本dofile文件暂无调节变量相关数据e文件暂无调节变量相关数据
+*调节变量示例，本dofile文件暂无调节变量相关数据文件
 *=调节变量1：企业年龄（假设变量名为firm_age)
 gen mod1 = firm_age
 reg rd_intensity c.female_ceo##c.mod1 log_assets leverage tangibility current_ratio year_dummy* ind_dummy*, vce(robust)
