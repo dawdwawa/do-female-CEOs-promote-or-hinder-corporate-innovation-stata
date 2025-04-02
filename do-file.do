@@ -14,15 +14,17 @@ import excel D:\女性高管对企业创新影响研究\FS_Combas.xlsx, firstrow
 sort stkcd accper
 save balance_clean.dta, replace
 import excel D:\女性高管对企业创新影响研究\FS_comins.xlsx, firstrow clear
-sort atkcd
+sort stkcd accper
 save income_clean.dta, replace
 import excel D:\女性高管对企业创新影响研究\CG_Director.xlsx, firstrow clear
+sort stkcd accper
 save ceo_clean.dta, replace
 import excel D:\女性高管对企业创新影响研究\STK_LISTEDCOINFOANL.xlsx, firstrow clear
+sort stkcd accper 
 save industrycode.dta, replace
 
 *=构建女性高管变量
-*=将“男女”变为 女==1，男==0，以stkcd，accper为根据加总并且构建单一年度的女性高管变量female——num
+*=将“男女”变为 女==1，男==0，以stkcd，accper为根据加总并且构建单一年度的女性高管变量female_num
 *= 去掉多余重复值
 use ceo_clean.dta, replace
 gen female_ceo = (gender_ceo == "女") if !missing(gender_ceo)
@@ -66,7 +68,7 @@ gen current_ratio = current_assets / current_liabilities
 *=缩尾处理（1%和99%）
 winsor2 rd_intensity log_assets leverage tangibility current_ratio, cuts(1 99) replace
 *=剔除缺失值
-drop if missing(rd_intensity, female_ceo, log_assets, leverage, tangibility, current_ratio)
+drop if missing(rd_intensity, female_num, log_assets, leverage, tangibility, current_ratio)
 *=生成年份和行业虚拟变量
 tab accper, gen(year_dummy)
 tab industrycode, gen(ind_dummy)
